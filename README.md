@@ -59,10 +59,6 @@ cd your-repo-name
 
 5. **Run the Flask server**:
    ```bash
-   python app.py
-   ```
-   or
-   ```bash
    python hello.py
    ```
    (Whatever your main entry point is.)
