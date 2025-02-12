@@ -6,5 +6,5 @@ Run the activate script by doing  ./Server/Scripts/activate
 
 do `python server.py` inside the virtual enviroment
 
-upload a video to test
+upload a video to test 
 

@@ -1,72 +1,96 @@
 import os
 import subprocess
 import argparse
+import platform
+import sys
 
-def main():
-    parser = argparse.ArgumentParser(description="Run COLMAP sparse reconstruction pipeline.")
+def run_colmap_pipeline():
+    parser = argparse.ArgumentParser(description="Full COLMAP reconstruction pipeline")
     parser.add_argument('--input', required=True, help="Path to input frames folder")
     parser.add_argument('--output', required=True, help="Path to output COLMAP folder")
-    parser.add_argument('--width', type=int, required=True, help="Standardized frame width")
-    parser.add_argument('--height', type=int, required=True, help="Standardized frame height")
+    parser.add_argument('--width', type=int, required=True)
+    parser.add_argument('--height', type=int, required=True)
     args = parser.parse_args()
 
-    # Ensure output directories exist
+    # Path setup
     database_path = os.path.join(args.output, 'database.db')
     sparse_dir = os.path.join(args.output, 'sparse')
+    dense_dir = os.path.join(args.output, 'dense')
     text_dir = os.path.join(args.output, 'text')
-    vocab_tree_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vocab_tree_flickr100K_words32K.bin')
+    vocab_tree_path = os.path.join(os.path.dirname(__file__), 'vocab_tree_flickr100K_words32K.bin')
 
+    # Create directories
     os.makedirs(args.output, exist_ok=True)
     os.makedirs(sparse_dir, exist_ok=True)
+    os.makedirs(dense_dir, exist_ok=True)
     os.makedirs(text_dir, exist_ok=True)
 
-    # Path to COLMAP.bat
-    colmap_executable = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'COLMAP.bat')
+    # Get COLMAP executable
+    system = platform.system().lower()
+    colmap_exec = 'COLMAP.bat' if system == 'windows' else 'colmap'
+    if not os.path.exists(colmap_exec):
+        raise FileNotFoundError(f"COLMAP executable not found at {colmap_exec}")
 
-    # Step 1: Create COLMAP database
-    print("Creating COLMAP database...")
-    subprocess.run([colmap_executable, 'database_creator', '--database_path', database_path], check=True)
+    try:
+        # Feature extraction
+        subprocess.run([
+            colmap_exec, 'feature_extractor',
+            '--database_path', database_path,
+            '--image_path', args.input,
+            '--ImageReader.camera_model', 'SIMPLE_PINHOLE',
+            '--ImageReader.camera_params', f"{max(args.width, args.height) * 0.8},{args.width/2},{args.height/2}",
+            '--SiftExtraction.max_image_size', str(max(args.width, args.height))
+        ], check=True)
 
-    # Step 2: Feature extraction
-    print("Running feature extraction...")
-    subprocess.run([
-        colmap_executable, 'feature_extractor',
-        '--database_path', database_path,
-        '--image_path', args.input,
-        '--ImageReader.camera_model', 'SIMPLE_PINHOLE',
-        '--ImageReader.camera_params', f"{max(args.width, args.height) * 0.8},{args.width / 2},{args.height / 2}",
-        '--SiftExtraction.max_image_size', str(max(args.width, args.height))
-    ], check=True)
+        # Feature matching
+        subprocess.run([
+            colmap_exec, 'vocab_tree_matcher',
+            '--database_path', database_path,
+            '--VocabTreeMatching.vocab_tree_path', vocab_tree_path
+        ], check=True)
 
-    # Step 3: Feature matching using vocabulary tree
-    print("Running vocabulary tree feature matching...")
-    if not os.path.exists(vocab_tree_path):
-        raise FileNotFoundError(f"Vocabulary tree file not found: {vocab_tree_path}")
-    subprocess.run([
-        colmap_executable, 'vocab_tree_matcher',
-        '--database_path', database_path,
-        '--VocabTreeMatching.vocab_tree_path', vocab_tree_path
-    ], check=True)
+        # Sparse reconstruction
+        subprocess.run([
+            colmap_exec, 'mapper',
+            '--database_path', database_path,
+            '--image_path', args.input,
+            '--output_path', sparse_dir
+        ], check=True)
 
-    # Step 4: Sparse reconstruction
-    print("Running sparse reconstruction...")
-    subprocess.run([
-        colmap_executable, 'mapper',
-        '--database_path', database_path,
-        '--image_path', args.input,
-        '--output_path', sparse_dir
-    ], check=True)
+        # Dense reconstruction
+        subprocess.run([
+            colmap_exec, 'image_undistorter',
+            '--image_path', args.input,
+            '--input_path', os.path.join(sparse_dir, '0'),
+            '--output_path', dense_dir
+        ], check=True)
 
-    # Step 5: Convert sparse model to TXT format for possible future processing
-    print("Converting sparse model to TXT format...")
-    subprocess.run([
-        colmap_executable, 'model_converter',
-        '--input_path', os.path.join(sparse_dir, '0'),
-        '--output_path', text_dir,
-        '--output_type', 'TXT'
-    ], check=True)
+        subprocess.run([
+            colmap_exec, 'patch_match_stereo',
+            '--workspace_path', dense_dir
+        ], check=True)
 
-    print("Sparse reconstruction completed successfully.")
+        subprocess.run([
+            colmap_exec, 'stereo_fusion',
+            '--workspace_path', dense_dir,
+            '--output_path', os.path.join(dense_dir, 'fused.ply')
+        ], check=True)
+
+        # Export text format
+        subprocess.run([
+            colmap_exec, 'model_converter',
+            '--input_path', os.path.join(sparse_dir, '0'),
+            '--output_path', text_dir,
+            '--output_type', 'TXT'
+        ], check=True)
+
+        print("COLMAP pipeline completed successfully")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        print(f"COLMAP failed at step: {e.cmd}")
+        return False
 
 if __name__ == '__main__':
-    main()
+    success = run_colmap_pipeline()
+    sys.exit(0 if success else 1)
