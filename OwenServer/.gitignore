@@ -1,0 +1,44 @@
+# Virtual Environment
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+
+# Project specific
+uploads/
+frames/
+
+# Large files
+*.dylib
+*.so
+*.dll
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*

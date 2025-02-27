@@ -1,0 +1,25 @@
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Project specific
+uploads/
+frames/
+*.mov
+*.mp4
+*.avi
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+.DS_Store
+*.log
