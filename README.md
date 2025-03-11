@@ -78,13 +78,17 @@ cd your-repo-name
    ```bash
    npm install
    ```
-3. **Run the development server**:
+3. **Install tailwindcss modules**:
+   ```bash
+   npm install tailwindcss @tailwindcss/vite
+   ```
+4. **Run the development server**:
    ```bash
    npm run dev
    ```
    This usually starts the app at `http://127.0.0.1:5173` (or a different port).
 
-4. **Optional:** If you want a production build:
+5. **Optional:** If you want a production build:
    ```bash
    npm run build
    ```
