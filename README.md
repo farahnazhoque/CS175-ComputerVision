@@ -57,7 +57,11 @@ cd your-repo-name
    pip install flask flask-cors  # for example
    ```
 
-5. **Run the Flask server**:
+5. **Run and install postshot.exe**:
+   The exe file is included inside the server folder and should correctly install the cli interface.
+
+
+6. **Run the Flask server**:
    ```bash
    python hello.py
    ```
